@@ -34,3 +34,6 @@ et l'interface aura les signaturse des operations
     // IOC 
       ajout dans le startup  
       services.AddScoped<IRpnService, RpnService>(_logger); // avec _logger est un ILogger<Startup>
+
+
+Ajout de projet de test unitaire 
