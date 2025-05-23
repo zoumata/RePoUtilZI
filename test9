@@ -1,0 +1,66 @@
+import { Pipe, PipeTransform } from '@angular/core';
+
+@Pipe({
+  name: 'statusLabel',
+  standalone: true
+})
+export class StatusLabelPipe implements PipeTransform {
+  transform(idStatut: number | string | null | undefined): string {
+    switch (idStatut) {
+      case 1: return 'En attente';
+      case 2: return 'En cours';
+      case 3: return 'Terminé';
+      case 4: return 'Rejeté';
+      default: return 'Inconnu';
+    }
+  }
+}
+
+
+
+demain 
+{
+  "status": {
+    "1": "En attente",
+    "2": "En cours",
+    "3": "Terminé",
+    "4": "Rejeté",
+    "default": "Inconnu"
+  }
+}
+
+
+import { Pipe, PipeTransform } from '@angular/core';
+import { TranslateService } from '@ngx-translate/core';
+
+@Pipe({
+  name: 'statusLabel',
+  standalone: true
+})
+export class StatusLabelPipe implements PipeTransform {
+  constructor(private translate: TranslateService) {}
+
+  transform(idStatut: number | string | null | undefined): string {
+    const key = `status.${idStatut}`;
+    return this.translate.instant(key) || this.translate.instant('status.default');
+  }
+}
+
+
+option el 
+
+@Pipe({
+  name: 'statusColor',
+  standalone: true
+})
+export class StatusColorPipe implements PipeTransform {
+  transform(idStatut: number | string | null | undefined): string {
+    switch (Number(idStatut)) {
+      case 1: return 'gray';
+      case 2: return 'blue';
+      case 3: return 'green';
+      case 4: return 'red';
+      default: return 'dark';
+    }
+  }
+}
