@@ -16,7 +16,7 @@ export class StatusLabelPipe implements PipeTransform {
   }
 }
 
-
+<td>{{ virement.idStatut | statusLabel }}</td>
 
 demain 
 {
@@ -64,3 +64,4 @@ export class StatusColorPipe implements PipeTransform {
     }
   }
 }
+<td>{{ virement.idStatut | statusLabel }}</td>
