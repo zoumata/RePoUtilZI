@@ -1,0 +1,72 @@
+export interface PopinData<T = any> {
+  title?: string;
+  body?: string | HTMLElement;
+  model?: T;
+  isError?: boolean;
+  hasFooter?: boolean;
+  showClose?: boolean;
+}
+
+
+
+import { Component, Inject } from '@angular/core';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
+import { PopinData } from './PopinData';
+
+@Component({
+  selector: 'app-generic-popin',
+  template: `
+    <div class="header">{{ data.title }}</div>
+    <div class="body">
+      <ng-container *ngIf="data.body as text">
+        <div [innerHTML]="text"></div>
+      </ng-container>
+      <ng-container *ngIf="data.model">
+        <ng-content></ng-content>
+      </ng-container>
+    </div>
+    <div class="footer" *ngIf="data.hasFooter">Boutons ici...</div>
+    <button *ngIf="data.showClose !== false" (click)="dialogRef.close()">Fermer</button>
+  `
+})
+export class GenericPopinComponent<T> {
+  constructor(
+    @Inject(DIALOG_DATA) public data: PopinData<T>,
+    public dialogRef: DialogRef<GenericPopinComponent<T>>
+  ) {}
+}
+
+
+
+import { Injectable } from '@angular/core';
+import { Dialog } from '@angular/cdk/dialog';
+import { GenericPopinComponent } from './GenericPopinComponent';
+import { PopinData } from './PopinData';
+
+@Injectable({ providedIn: 'root' })
+export class PopinService {
+  constructor(private dialog: Dialog) {}
+
+  open<T>(data: PopinData<T>) {
+    return this.dialog.open(GenericPopinComponent, {
+      data: {
+        showClose: true,
+        hasFooter: false,
+        ...data
+      }
+    });
+  }
+}
+
+
+this.popinService.open({
+  title: 'Erreur',
+  body: 'Une erreur est survenue.',
+  isError: true
+});
+
+this.popinService.open<MyModel>({
+  title: 'Validation',
+  model: { isValid: true, reason: 'OK' },
+  hasFooter: true
+});
