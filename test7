@@ -1,0 +1,44 @@
+import { Component, Input, Output, EventEmitter } from '@angular/core';
+
+@Component({
+  selector: 'transfers-list-item',
+  standalone: true,
+  template: `
+    <tr
+      [ngClass]="[even ? 'even' : '', customClass]"
+      (click)="handleClick()"
+    >
+      <td>{{ transfer?.id }}</td>
+      <td>{{ transfer?.montant }}</td>
+      <td>{{ transfer?.devise }}</td>
+      <td>
+        <button (click)="handleDelete($event)">Supprimer</button>
+      </td>
+    </tr>
+  `
+})
+export class TransfersListItemComponent {
+  @Input() transfer!: { id: number; montant: number; devise: string };
+  @Input() even = false;
+  @Input() customClass = '';
+  @Output() onDelete = new EventEmitter<any>();
+
+  handleClick() {
+    console.log('Clicked', this.transfer);
+  }
+
+  handleDelete(event: MouseEvent) {
+    event.stopPropagation();
+    this.onDelete.emit(this.transfer);
+  }
+}
+
+
+
+
+<transfers-list-item
+  [transfer]="transfer"
+  [even]="even"
+  [customClass]="'transfers-list-item hidden-xs'"
+  (onDelete)="onDelete($event)">
+</transfers-list-item>
