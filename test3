@@ -1,0 +1,198 @@
+// ================== DTO ==================
+namespace MyProject.Application.Virements.DTOs;
+
+public class VirementDto
+{
+    public Guid Id { get; set; }
+    public string Beneficiaire { get; set; } = string.Empty;
+    public decimal Montant { get; set; }
+    public DateTime DateCreation { get; set; }
+}
+
+public class VirementFiltreDto
+{
+    public string? MotCle { get; set; }
+    public int PageIndex { get; set; } = 0;
+    public int PageSize { get; set; } = 40;
+    public string? TriColonne { get; set; }
+    public string? TriSens { get; set; }
+}
+
+// =============== QUERY OPTIONS ================
+namespace MyProject.Application.Common;
+
+using System.Linq.Expressions;
+
+public class QueryOptions<T, TResult>
+{
+    public Expression<Func<T, bool>>? Filter { get; set; }
+    public List<Expression<Func<T, object>>> Includes { get; set; } = new();
+    public Expression<Func<T, TResult>>? Selector { get; set; }
+    public int? Skip { get; set; }
+    public int? Take { get; set; }
+    public string? OrderByProperty { get; set; }
+    public bool OrderByDescending { get; set; }
+}
+
+public class PagedResult<TResult>
+{
+    public IReadOnlyList<TResult> Items { get; set; } = [];
+    public int TotalCount { get; set; }
+
+    public PagedResult() { }
+
+    public PagedResult(IReadOnlyList<TResult> items, int totalCount)
+    {
+        Items = items;
+        TotalCount = totalCount;
+    }
+}
+
+// ================== EXTENSIONS ==================
+namespace MyProject.Infrastructure.Extensions;
+
+using System.Linq.Expressions;
+using System.Reflection;
+
+public static class QueryableExtensions
+{
+    public static IOrderedQueryable<T> OrderByDynamic<T>(
+        this IQueryable<T> source,
+        string propertyName,
+        bool descending = false)
+    {
+        try
+        {
+            var param = Expression.Parameter(typeof(T), "x");
+            var property = Expression.PropertyOrField(param, propertyName);
+            var lambda = Expression.Lambda(property, param);
+
+            var methodName = descending ? "OrderByDescending" : "OrderBy";
+            var method = typeof(Queryable).GetMethods()
+                .First(m => m.Name == methodName && m.GetParameters().Length == 2)
+                .MakeGenericMethod(typeof(T), property.Type);
+
+            return (IOrderedQueryable<T>)method.Invoke(null, new object[] { source, lambda })!;
+        }
+        catch
+        {
+            return (IOrderedQueryable<T>)source;
+        }
+    }
+}
+
+// ================== ENTITY ==================
+namespace MyProject.Domain.Entities;
+
+public class Virement
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Beneficiaire { get; set; } = string.Empty;
+    public decimal Montant { get; set; }
+    public DateTime DateCreation { get; set; } = DateTime.UtcNow;
+}
+
+// ================== REPOSITORY ==================
+namespace MyProject.Infrastructure.Data;
+
+using Microsoft.EntityFrameworkCore;
+using MyProject.Application.Common;
+using MyProject.Domain.Entities;
+using MyProject.Infrastructure.Extensions;
+
+public class AppDbContext : DbContext
+{
+    public DbSet<Virement> Virements => Set<Virement>();
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+}
+
+public class VirementRepository
+{
+    private readonly AppDbContext _context;
+    public VirementRepository(AppDbContext context) => _context = context;
+
+    public async Task<PagedResult<T>> GetPagedAsync<T>(QueryOptions<Virement, T> options)
+    {
+        var query = _context.Virements.AsQueryable();
+
+        if (options.Filter != null)
+            query = query.Where(options.Filter);
+
+        var total = await query.CountAsync();
+
+        if (!string.IsNullOrEmpty(options.OrderByProperty))
+            query = query.OrderByDynamic(options.OrderByProperty, options.OrderByDescending);
+
+        if (options.Skip.HasValue) query = query.Skip(options.Skip.Value);
+        if (options.Take.HasValue) query = query.Take(options.Take.Value);
+
+        var result = await query.Select(options.Selector!).ToListAsync();
+        return new PagedResult<T>(result, total);
+    }
+}
+
+// ================== HANDLER ==================
+namespace MyProject.Application.Virements.Queries;
+
+using MediatR;
+using MyProject.Application.Virements.DTOs;
+using MyProject.Application.Common;
+using MyProject.Infrastructure.Data;
+
+public record GetVirementsFiltrésQuery(VirementFiltreDto Filtre) : IRequest<PagedResult<VirementDto>>;
+
+public class GetVirementsFiltrésQueryHandler : IRequestHandler<GetVirementsFiltrésQuery, PagedResult<VirementDto>>
+{
+    private readonly VirementRepository _repo;
+    public GetVirementsFiltrésQueryHandler(VirementRepository repo) => _repo = repo;
+
+    public async Task<PagedResult<VirementDto>> Handle(GetVirementsFiltrésQuery request, CancellationToken cancellationToken)
+    {
+        var f = request.Filtre;
+
+        var options = new QueryOptions<Virement, VirementDto>
+        {
+            Filter = v => string.IsNullOrEmpty(f.MotCle) || v.Beneficiaire.Contains(f.MotCle),
+            Selector = v => new VirementDto
+            {
+                Id = v.Id,
+                Beneficiaire = v.Beneficiaire,
+                Montant = v.Montant,
+                DateCreation = v.DateCreation
+            },
+            Skip = f.PageIndex * f.PageSize,
+            Take = f.PageSize,
+            OrderByProperty = f.TriColonne,
+            OrderByDescending = f.TriSens?.ToLower() != "asc"
+        };
+
+        return await _repo.GetPagedAsync(options);
+    }
+}
+
+// ================== CONTROLLER ==================
+namespace MyProject.WebAPI.Controllers;
+
+using Microsoft.AspNetCore.Mvc;
+using MediatR;
+using MyProject.Application.Virements.DTOs;
+using MyProject.Application.Virements.Queries;
+
+[ApiController]
+[Route("api/virements")]
+public class VirementsController : ControllerBase
+{
+    private readonly IMediator _mediator;
+
+    public VirementsController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+
+    [HttpPost("filtre")]
+    public async Task<IActionResult> Filtrer([FromBody] VirementFiltreDto filtre)
+    {
+        var result = await _mediator.Send(new GetVirementsFiltrésQuery(filtre));
+        return Ok(result);
+    }
+}
