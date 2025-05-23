@@ -1,3 +1,46 @@
+public interface IVirementRepository
+{
+    Task<PagedResult<VirementDto>> GetFilteredAsync(QueryOptions<Virement, VirementDto> options);
+}
+
+public class VirementRepository : IVirementRepository
+{
+    private readonly AppDbContext _context;
+
+    public VirementRepository(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<PagedResult<VirementDto>> GetFilteredAsync(QueryOptions<Virement, VirementDto> options)
+    {
+        var query = _context.Virements.AsQueryable();
+
+        if (options.Filter != null)
+            query = query.Where(options.Filter);
+
+        var total = await query.CountAsync();
+
+        if (!string.IsNullOrWhiteSpace(options.OrderByProperty))
+            query = query.OrderByDynamic(options.OrderByProperty, options.OrderByDescending);
+
+        if (options.Skip.HasValue) query = query.Skip(options.Skip.Value);
+        if (options.Take.HasValue) query = query.Take(options.Take.Value);
+
+        var result = await query.Select(options.Selector!).ToListAsync();
+        return new PagedResult<VirementDto>(result, total);
+    }
+}
+
+private readonly IVirementRepository _repo;
+
+public GetVirementsFiltrésQueryHandler(IVirementRepository repo)
+{
+    _repo = repo;
+}
+
+
+
 // ================== DTOs ==================
 public class VirementDto
 {
