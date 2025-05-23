@@ -1,0 +1,60 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+
+namespace MyProject.Application.Common
+{
+    // Modèle représentant une devise
+    public class CurrencyInfo
+    {
+        public string Code { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Symbol { get; set; } = "";
+        public string Culture { get; set; } = "";
+    }
+
+    // Service fictif pour charger des devises (dans une vraie app, ça viendrait d'une base ou d'un fichier JSON)
+    public static class CurrencyService
+    {
+        private static readonly List<CurrencyInfo> _currencies = new()
+        {
+            new CurrencyInfo { Code = "EUR", Label = "Euro", Symbol = "€", Culture = "fr-FR" },
+            new CurrencyInfo { Code = "USD", Label = "Dollar", Symbol = "$", Culture = "en-US" },
+            new CurrencyInfo { Code = "DZD", Label = "Dinar algérien", Symbol = "DA", Culture = "ar-DZ" }
+        };
+
+        public static CurrencyInfo? GetByCode(string code)
+        {
+            return _currencies.FirstOrDefault(c => c.Code.Equals(code, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    // Formateur de montant universel
+    public static class MontantFormatter
+    {
+        public static string Format(decimal montant, string codeDevise)
+        {
+            var currency = CurrencyService.GetByCode(codeDevise);
+            if (currency == null)
+                return $"{montant:N2} {codeDevise}";
+
+            var culture = new CultureInfo(currency.Culture);
+            return montant.ToString("C", culture);
+        }
+    }
+
+    // Exemple d'un DTO de virement
+    public class VirementDto
+    {
+        public Guid Id { get; set; }
+        public decimal Montant { get; set; }
+        public string Devise { get; set; } = "DZD";
+        public DateTime DateCreation { get; set; }
+
+        public string MontantAffichage => MontantFormatter.Format(Montant, Devise);
+    }
+}
+dansnle dto
+
+public string MontantAffichage => MontantFormatter.Format(Montant, Devise);
