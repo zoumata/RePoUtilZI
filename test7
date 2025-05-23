@@ -1,3 +1,48 @@
+import { Component, Input } from '@angular/core';
+import { NgIf, NgFor } from '@angular/common';
+import { TransfersListItemComponent } from './transfers-list-item.component';
+
+@Component({
+  selector: 'transfers-list',
+  standalone: true,
+  imports: [NgIf, NgFor, TransfersListItemComponent],
+  template: `
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Montant</th>
+          <th>Devise</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="transfers?.length === 0">
+          <td colspan="4" class="no-result">Aucun virement n'a été trouvé</td>
+        </tr>
+        <ng-container *ngFor="let transfer of transfers; let i = index; let even = even">
+          <transfers-list-item
+            [transfer]="transfer"
+            [even]="even"
+            [customClass]="'transfers-list-item hidden-xs'"
+            (onDelete)="onDelete($event)">
+          </transfers-list-item>
+        </ng-container>
+      </tbody>
+    </table>
+  `
+})
+export class TransfersListComponent {
+  @Input() transfers: { id: number; montant: number; devise: string }[] = [];
+
+  onDelete(transfer: any) {
+    // Exemple : suppression locale
+    this.transfers = this.transfers.filter(t => t.id !== transfer.id);
+  }
+}
+
+
+
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 
 @Component({
