@@ -1,0 +1,46 @@
+import { Component, Inject, Injectable } from '@angular/core';
+import { Dialog, DialogRef, DIALOG_DATA } from '@angular/cdk/dialog';
+import { ComponentType } from '@angular/cdk/portal';
+
+// --- SERVICE GÉNÉRIQUE POPIN ---
+@Injectable({ providedIn: 'root' })
+export class PopinService {
+  constructor(private dialog: Dialog) {}
+
+  openComponent<T>(component: ComponentType<T>, data?: any) {
+    return this.dialog.open(component, { data });
+  }
+}
+
+// --- COMPOSANT POPIN DYNAMIQUE ---
+@Component({
+  selector: 'app-my-custom',
+  standalone: true,
+  template: `
+    <h2>Popin personnalisée</h2>
+    <p>{{ data.message }}</p>
+    <button (click)="dialogRef.close()">Fermer</button>
+  `
+})
+export class MyCustomComponent {
+  constructor(
+    @Inject(DIALOG_DATA) public data: { message: string },
+    public dialogRef: DialogRef<MyCustomComponent>
+  ) {}
+}
+
+// --- COMPOSANT QUI OUVRE LA POPIN ---
+@Component({
+  selector: 'app-example',
+  standalone: true,
+  template: '<button (click)="open()">Ouvrir popin</button>',
+})
+export class ExampleComponent {
+  constructor(private popinService: PopinService) {}
+
+  open() {
+    this.popinService.openComponent(MyCustomComponent, {
+      message: 'Bonjour depuis la popin dynamique !'
+    });
+  }
+}
