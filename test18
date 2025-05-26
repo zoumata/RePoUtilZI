@@ -1,3 +1,146 @@
+import { Component, signal, computed, effect } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { TransferService } from './services/transfer.service'; // à adapter selon ton arbo
+import { TransferModel, SearchSortModel } from './models';
+import { TransfersSearchComponent } from '../transfers-search/transfers-search.component';
+import { TransfersListComponent } from '../transfers-list/transfers-list.component';
+import { PagerComponent, PagerInfoModel } from '../pager/pager.component';
+
+@Component({
+  selector: 'transfer-history',
+  standalone: true,
+  imports: [CommonModule, TransfersSearchComponent, TransfersListComponent, PagerComponent],
+  templateUrl: './transfer-history.component.html'
+})
+export class TransferHistoryComponent {
+  // Signaux
+  pageIndex = signal(0);
+  pageSize = signal(10);
+  triSens = signal<'asc' | 'desc'>('desc');
+  keyword = signal('');
+  total = signal(0);
+  loading = signal(false);
+  hasTransfersError = signal(false);
+  confirmationMessage = signal('');
+
+  // Liste de résultats
+  transfers = signal<TransferModel[]>([]);
+
+  // Tri
+  searchSortOptions: SearchSortModel[] = [
+    { code: 'desc', label: 'Du plus récent au plus ancien' },
+    { code: 'asc', label: 'Du plus ancien au plus récent' }
+  ];
+  searchSortModel: SearchSortModel = this.searchSortOptions[0];
+
+  constructor(private transferService: TransferService) {
+    this.loadTransfers();
+  }
+
+  // Calcul de la pagination
+  readonly pagerInfos = computed<PagerInfoModel>(() => ({
+    isPrevEnabled: this.pageIndex() > 0,
+    isNextEnabled: (this.pageIndex() + 1) * this.pageSize() < this.total(),
+    nbResults: this.total(),
+    index: this.pageIndex(),
+    size: this.pageSize()
+  }));
+
+  loadTransfers(): void {
+    this.loading.set(true);
+    this.hasTransfersError.set(false);
+    this.transferService.getHistoryTransfers({
+      keyword: this.keyword(),
+      pageIndex: this.pageIndex(),
+      pageSize: this.pageSize(),
+      triSens: this.triSens()
+    }).then(result => {
+      this.transfers.set(result.items);
+      this.total.set(result.total);
+      this.loading.set(false);
+    }).catch(() => {
+      this.hasTransfersError.set(true);
+      this.transfers.set([]);
+      this.loading.set(false);
+    });
+  }
+
+  onSearch(model: { keyWords: string }) {
+    this.keyword.set(model.keyWords);
+    this.pageIndex.set(0);
+    this.loadTransfers();
+  }
+
+  onReset() {
+    this.keyword.set('');
+    this.pageIndex.set(0);
+    this.loadTransfers();
+  }
+
+  onSortChange(sort: SearchSortModel) {
+    this.searchSortModel = sort;
+    this.triSens.set(sort.code as 'asc' | 'desc');
+    this.pageIndex.set(0);
+    this.loadTransfers();
+  }
+
+  onPrev() {
+    if (this.pageIndex() > 0) {
+      this.pageIndex.update(v => v - 1);
+      this.loadTransfers();
+    }
+  }
+
+  onNext() {
+    if (this.pagerInfos().isNextEnabled) {
+      this.pageIndex.update(v => v + 1);
+      this.loadTransfers();
+    }
+  }
+
+  onDeleteConfirm(virementId: string) {
+    // supprimer un virement
+  }
+
+  onDeleteEnd() {
+    this.confirmationMessage.set("Virement annulé avec succès.");
+    this.loadTransfers();
+  }
+}
+
+<div class="content-block">
+
+  <transfers-search
+    [loading]="loading()"
+    [searchSortOptions]="searchSortOptions"
+    [searchSortModel]="searchSortModel"
+    (onSearchEvent)="onSearch($event)"
+    (onResetEvent)="onReset()"
+    (onSortChangeEvent)="onSortChange($event)">
+  </transfers-search>
+
+  <message type="success" *ngIf="confirmationMessage()">{{ confirmationMessage() }}</message>
+  <message type="error" *ngIf="hasTransfersError()">Les virements n’ont pas pu être chargés</message>
+
+  <ng-container *ngIf="!hasTransfersError()">
+    <transfers-list
+      [transfers]="transfers()"
+      [loading]="loading()"
+      (onDeleteEvent)="onDeleteConfirm($event)">
+    </transfers-list>
+
+    <pager
+      [infos]="pagerInfos()"
+      [loading]="loading()"
+      (onPrevEvent)="onPrev()"
+      (onNextEvent)="onNext()">
+    </pager>
+  </ng-container>
+</div>
+
+
+
+
 import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
