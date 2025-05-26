@@ -1,0 +1,183 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using MediatR;
+
+namespace MyProject.Virements
+{
+    // DTO de filtre
+    public class VirementFiltreDto
+    {
+        public string? MotCle { get; set; }
+        public int PageIndex { get; set; } = 0;
+        public int PageSize { get; set; } = 20;
+        public string? TriColonne { get; set; }
+        public string? TriSens { get; set; }
+    }
+
+    // DTO principal
+    public class VirementDto
+    {
+        public Guid Id { get; set; }
+        public string Beneficiaire { get; set; } = "";
+        public decimal Montant { get; set; }
+        public string Devise { get; set; } = "";
+        public DateTime DateCreation { get; set; }
+        public string MontantAffichage => $"{Montant:N2} {Devise}";
+    }
+
+    // Résultat paginé
+    public class PagedResult<T>
+    {
+        public IReadOnlyList<T> Items { get; set; }
+        public int TotalCount { get; set; }
+
+        public PagedResult(IReadOnlyList<T> items, int totalCount)
+        {
+            Items = items;
+            TotalCount = totalCount;
+        }
+    }
+
+    // Entité Virement
+    public class Virement
+    {
+        public Guid Id { get; set; }
+        public string Beneficiaire { get; set; } = "";
+        public string Motif { get; set; } = "";
+        public decimal Montant { get; set; }
+        public string Devise { get; set; } = "";
+        public DateTime DateCreation { get; set; } = DateTime.UtcNow;
+    }
+
+    // DbContext
+    public class AppDbContext : DbContext
+    {
+        public DbSet<Virement> Virements => Set<Virement>();
+
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    }
+
+    // Extensions pour tri dynamique
+    public static class QueryableExtensions
+    {
+        public static IOrderedQueryable<T> OrderByDynamic<T>(this IQueryable<T> source, string propertyName)
+        {
+            var param = Expression.Parameter(typeof(T), "x");
+            var property = Expression.PropertyOrField(param, propertyName);
+            var lambda = Expression.Lambda(property, param);
+
+            var method = typeof(Queryable).GetMethods()
+                .First(m => m.Name == "OrderBy" && m.GetParameters().Length == 2)
+                .MakeGenericMethod(typeof(T), property.Type);
+
+            return (IOrderedQueryable<T>)method.Invoke(null, new object[] { source, lambda })!;
+        }
+
+        public static IOrderedQueryable<T> OrderByDescendingDynamic<T>(this IQueryable<T> source, string propertyName)
+        {
+            var param = Expression.Parameter(typeof(T), "x");
+            var property = Expression.PropertyOrField(param, propertyName);
+            var lambda = Expression.Lambda(property, param);
+
+            var method = typeof(Queryable).GetMethods()
+                .First(m => m.Name == "OrderByDescending" && m.GetParameters().Length == 2)
+                .MakeGenericMethod(typeof(T), property.Type);
+
+            return (IOrderedQueryable<T>)method.Invoke(null, new object[] { source, lambda })!;
+        }
+    }
+
+    // Repository sans générique
+    public class VirementRepository
+    {
+        private readonly AppDbContext _context;
+
+        public VirementRepository(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<PagedResult<VirementDto>> GetPagedAsync(VirementFiltreDto filtre)
+        {
+            var query = _context.Virements.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(filtre.MotCle))
+            {
+                query = query.Where(v =>
+                    v.Beneficiaire.Contains(filtre.MotCle) ||
+                    v.Motif.Contains(filtre.MotCle));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filtre.TriColonne))
+            {
+                query = filtre.TriSens?.ToLower() == "desc"
+                    ? query.OrderByDescendingDynamic(filtre.TriColonne)
+                    : query.OrderByDynamic(filtre.TriColonne);
+            }
+
+            var total = await query.CountAsync();
+
+            var items = await query
+                .Skip(filtre.PageIndex * filtre.PageSize)
+                .Take(filtre.PageSize)
+                .Select(v => new VirementDto
+                {
+                    Id = v.Id,
+                    Beneficiaire = v.Beneficiaire,
+                    Montant = v.Montant,
+                    Devise = v.Devise,
+                    DateCreation = v.DateCreation
+                })
+                .ToListAsync();
+
+            return new PagedResult<VirementDto>(items, total);
+        }
+    }
+
+    // MediatR Query
+    public record GetVirementsQuery(VirementFiltreDto Filtre) : IRequest<PagedResult<VirementDto>>;
+
+    // Handler
+    public class GetVirementsQueryHandler : IRequestHandler<GetVirementsQuery, PagedResult<VirementDto>>
+    {
+        private readonly VirementRepository _repo;
+
+        public GetVirementsQueryHandler(VirementRepository repo)
+        {
+            _repo = repo;
+        }
+
+        public async Task<PagedResult<VirementDto>> Handle(GetVirementsQuery request, CancellationToken cancellationToken)
+        {
+            return await _repo.GetPagedAsync(request.Filtre);
+        }
+    }
+
+    // Controller API
+    [ApiController]
+    [Route("api/virements")]
+    public class VirementsController : ControllerBase
+    {
+        private readonly IMediator _mediator;
+
+        public VirementsController(IMediator mediator)
+        {
+            _mediator = mediator;
+        }
+
+        [HttpPost("filtre")]
+        public async Task<IActionResult> Filtrer([FromBody] VirementFiltreDto filtre)
+        {
+            var result = await _mediator.Send(new GetVirementsQuery(filtre));
+            return Ok(result);
+        }
+    }
+}
