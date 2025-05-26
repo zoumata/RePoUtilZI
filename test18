@@ -1,0 +1,141 @@
+import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+
+export interface SearchSortModel {
+  code: string;
+  label: string;
+}
+
+export interface TransferSearchFormModel {
+  keyWords: string;
+}
+
+// =========================
+// === PageSearchComponent
+// =========================
+
+@Component({
+  selector: 'page-search',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  template: `
+    <div class="mt-2">
+      <label class="form-label">Trier par</label>
+      <select class="form-select"
+              [ngModel]="selectedSort().code"
+              (ngModelChange)="onSortChange($event)">
+        <option *ngFor="let option of sortOptions()" [value]="option.code">
+          {{ option.label }}
+        </option>
+      </select>
+    </div>
+  `
+})
+export class PageSearchComponent {
+  @Input() set searchSortOptions(value: SearchSortModel[]) {
+    this.sortOptions.set(value);
+  }
+
+  @Input() set searchSortModel(value: SearchSortModel) {
+    this.selectedSort.set(value);
+  }
+
+  @Output() onSortChangeEvent = new EventEmitter<SearchSortModel>();
+
+  sortOptions = signal<SearchSortModel[]>([]);
+  selectedSort = signal<SearchSortModel>({ code: '', label: '' });
+
+  onSortChange(code: string): void {
+    const found = this.sortOptions().find(o => o.code === code);
+    if (found) {
+      this.selectedSort.set(found);
+      this.onSortChangeEvent.emit(found);
+    }
+  }
+}
+
+// ==============================
+// === TransferSearchComponent
+// ==============================
+
+@Component({
+  selector: 'transfers-search',
+  standalone: true,
+  imports: [CommonModule, FormsModule, PageSearchComponent],
+  template: `
+    <page-search
+      [searchSortOptions]="searchSortOptions"
+      [searchSortModel]="searchSortModel"
+      (onSortChangeEvent)="onSortChange($event)">
+    </page-search>
+
+    <div class="row mt-3">
+      <div class="col-sm-6 col-md-4">
+        <label class="form-label">Par mots-clés</label>
+        <input
+          type="text"
+          class="form-control"
+          [ngModel]="keyword()"
+          (ngModelChange)="keyword.set($event)"
+          [pattern]="allowedPattern"
+          [ngClass]="{ 'is-invalid': isKeywordInvalid() }"
+          placeholder="Mots-clés" />
+
+        <div class="invalid-feedback" *ngIf="isKeywordInvalid()">
+          Caractères spéciaux non autorisés
+        </div>
+      </div>
+
+      <div class="col-sm-6 col-md-4 d-flex align-items-end gap-2">
+        <button class="btn btn-primary btn-sm"
+                [disabled]="isKeywordInvalid() || loading"
+                (click)="emitSearch()">Lancer</button>
+
+        <button class="btn btn-outline-secondary btn-sm"
+                [disabled]="loading"
+                (click)="reset()">✖</button>
+      </div>
+    </div>
+  `
+})
+export class TransferSearchComponent {
+  @Input() loading = false;
+  @Input() searchSortOptions: SearchSortModel[] = [];
+  @Input() searchSortModel!: SearchSortModel;
+
+  @Output() onSearchEvent = new EventEmitter<TransferSearchFormModel>();
+  @Output() onResetEvent = new EventEmitter<void>();
+  @Output() onSortChangeEvent = new EventEmitter<SearchSortModel>();
+
+  keyword = signal('');
+  readonly allowedPattern = "[\\w\\sàâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ0-9]*";
+
+  readonly isKeywordInvalid = computed(() => {
+    const value = this.keyword();
+    return value.length > 0 && !new RegExp(this.allowedPattern).test(value);
+  });
+
+  emitSearch() {
+    if (this.isKeywordInvalid()) return;
+    this.onSearchEvent.emit({ keyWords: this.keyword() });
+  }
+
+  reset() {
+    this.keyword.set('');
+    this.onResetEvent.emit();
+  }
+
+  onSortChange(sort: SearchSortModel) {
+    this.onSortChangeEvent.emit(sort);
+  }
+}
+
+<transfers-search
+  [loading]="loadingTransfers"
+  [searchSortOptions]="searchSortOptions"
+  [searchSortModel]="searchSortModel"
+  (onSearchEvent)="onSearch($event)"
+  (onResetEvent)="onReset()"
+  (onSortChangeEvent)="onSortChange($event)">
+</transfers-search>
