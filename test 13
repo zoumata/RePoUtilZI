@@ -1,0 +1,35 @@
+using MediatR;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Linq;
+
+public record GetUserTransfersQuery(TransferHistoryFilterDto Filtre) : IRequest<PagedResult<UserTransferDto>>;
+
+public class GetUserTransfersQueryHandler : IRequestHandler<GetUserTransfersQuery, PagedResult<UserTransferDto>>
+{
+    private readonly TransferRepository _repository;
+
+    public GetUserTransfersQueryHandler(TransferRepository repository)
+    {
+        _repository = repository;
+    }
+
+    public async Task<PagedResult<UserTransferDto>> Handle(GetUserTransfersQuery request, CancellationToken cancellationToken)
+    {
+        var (transfers, total) = await _repository.GetPagedAsync(request.Filtre);
+
+        var dtos = transfers.Select(v => new UserTransferDto
+        {
+            Id = v.Id,
+            DebitAccountNumber = v.DebitAccountNumber,
+            BeneficiaryOwner = v.BeneficiaryOwner,
+            IBAN = v.IBAN,
+            LabelIssuer = v.LabelIssuer,
+            AmountDebit = v.AmountDebit,
+            Devise = v.Devise,
+            DateCreation = v.DateEntry
+        }).ToList();
+
+        return new PagedResult<UserTransferDto>(dtos, total);
+    }
+}
