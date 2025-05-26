@@ -2,7 +2,50 @@ using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
+using System;
+using System.Collections.Generic;
+using eBanking.Domain.Models;
 
+public static class UserTransferMock
+{
+    public static List<UserTransfer> GenerateSampleTransfers(int count = 10)
+    {
+        var list = new List<UserTransfer>();
+
+        for (int i = 1; i <= count; i++)
+        {
+            list.Add(new UserTransfer
+            {
+                IdExterne = $"EXT{i:D5}",
+                DebitAccountNumber = $"DZ100000{i:D4}",
+                AccountNumberShort = $"000{i:D4}",
+                AccountOwner = $"Client {i}",
+                TypeCompte = "Epargne",
+                Purpose = "Salaire",
+                Currency = "DZD",
+                DateEntry = DateTime.UtcNow.AddDays(-i),
+                DateValuation = DateTime.UtcNow.AddDays(-i + 1),
+                AmountDebit = 1000 + i * 100,
+                IsDeletable = i % 2 == 0,
+                IBAN = $"DZ100000000000000000{i:D4}",
+                BeneficiaryBank = $"BANQUE {i}",
+                IdStatut = i % 4 + 1,
+                IdBeneficiary = i,
+                BeneficiaryOwner = $"Bénéficiaire {i}",
+                IdTypeVirement = i % 3 + 1,
+                LabelIssuer = $"Entreprise {i}",
+                User = new User
+                {
+                    Id = i,
+                    Login = $"user{i}",
+                    FullName = $"Utilisateur {i}"
+                }
+            });
+        }
+
+        return list;
+    }
+}
 public record GetUserTransfersQuery(TransferHistoryFilterDto Filtre) : IRequest<PagedResult<UserTransferDto>>;
 
 public class GetUserTransfersQueryHandler : IRequestHandler<GetUserTransfersQuery, PagedResult<UserTransferDto>>
