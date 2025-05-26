@@ -1,0 +1,166 @@
+import { Component, Input, Output, EventEmitter, ViewChild, computed, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { CdkMenuModule } from '@angular/cdk/menu';
+
+export interface SearchSortModel {
+  code: string;
+  label: string;
+}
+
+export interface PagerInfoModel {
+  isPrevEnabled: boolean;
+  isNextEnabled: boolean;
+  nbResults: number;
+  index: number;
+  size: number;
+}
+
+// ==============================
+// === COMPOSANT : page-search ===
+// ==============================
+
+@Component({
+  selector: 'page-search',
+  standalone: true,
+  imports: [CommonModule, FormsModule, CdkMenuModule],
+  template: `
+    <div class="search-filters">
+      <div class="search-filters-top">
+        <button (click)="isOpened = !isOpened" class="btn btn-toggle">
+          <span *ngIf="!isOpened">Recherche avancée</span>
+          <span *ngIf="isOpened">Fermer la recherche</span>
+        </button>
+
+        <div cdkMenuGroup class="dropdown-container" *ngIf="searchSortOptions?.length">
+          <button
+            [cdkMenuTriggerFor]="sortMenu"
+            class="btn btn-light dropdown-toggle"
+            type="button">
+            Trier par
+          </button>
+
+          <ng-template #sortMenu>
+            <ul cdkMenu class="dropdown-menu show">
+              <li *ngFor="let option of searchSortOptions"
+                  [cdkMenuItem]
+                  (click)="onSortChange(option)"
+                  [class.active]="isSortActive(option)">
+                {{ option.label }}
+              </li>
+            </ul>
+          </ng-template>
+        </div>
+      </div>
+
+      <div class="search-filters-form" *ngIf="isOpened">
+        <label>Mots-clés</label>
+        <input type="text"
+               class="form-control"
+               [(ngModel)]="keyword"
+               [pattern]="allowedChars"
+               #keywordCtrl="ngModel"
+               [ngClass]="{ 'ng-invalid': keywordCtrl.invalid && keywordCtrl.dirty }"
+               placeholder="Mots-clés" />
+
+        <div *ngIf="keywordCtrl.invalid && keywordCtrl.dirty" class="form-error">
+          Caractères spéciaux non autorisés
+        </div>
+
+        <div class="btn-group mt-2">
+          <button class="btn btn-primary"
+                  [disabled]="keywordCtrl.invalid || loading"
+                  (click)="onSearch()">Lancer</button>
+
+          <button type="button"
+                  class="btn btn-reset"
+                  [disabled]="loading"
+                  (click)="onReset()">✖</button>
+        </div>
+      </div>
+    </div>
+  `
+})
+export class PageSearchComponent {
+  @Input() searchSortOptions: SearchSortModel[] = [];
+  @Input() searchSortModel!: SearchSortModel;
+  @Input() loading = false;
+  @Input() errorMessage?: string;
+
+  @Output() onSortChangeEvent = new EventEmitter<SearchSortModel>();
+  @Output() onSearchEvent = new EventEmitter<string>();
+  @Output() onResetEvent = new EventEmitter<void>();
+
+  isOpened = false;
+  keyword = '';
+  readonly allowedChars = "[\\w\\sàâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ0-9]*";
+
+  onSortChange(sort: SearchSortModel) {
+    if (this.isSortActive(sort)) return;
+    this.searchSortModel = sort;
+    this.onSortChangeEvent.emit(sort);
+  }
+
+  isSortActive(sort: SearchSortModel): boolean {
+    return this.searchSortModel?.code === sort.code;
+  }
+
+  onSearch(): void {
+    this.onSearchEvent.emit(this.keyword);
+  }
+
+  onReset(): void {
+    this.keyword = '';
+    this.onResetEvent.emit();
+  }
+}
+
+// ===========================
+// === COMPOSANT : <pager> ===
+// ===========================
+
+@Component({
+  selector: 'pager',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <div class="pager d-flex align-items-center gap-2 mt-3">
+      <button class="btn btn-sm" (click)="onPrevEvent.emit()" [disabled]="!infos?.isPrevEnabled || loading">
+        Précédent
+      </button>
+
+      <span>Page {{ infos?.index + 1 }} sur {{ totalPages }}</span>
+
+      <button class="btn btn-sm" (click)="onNextEvent.emit()" [disabled]="!infos?.isNextEnabled || loading">
+        Suivant
+      </button>
+    </div>
+  `
+})
+export class PagerComponent {
+  @Input() infos!: PagerInfoModel;
+  @Input() loading = false;
+
+  @Output() onPrevEvent = new EventEmitter<void>();
+  @Output() onNextEvent = new EventEmitter<void>();
+
+  get totalPages(): number {
+    return this.infos ? Math.ceil(this.infos.nbResults / this.infos.size) : 1;
+  }
+}
+
+<page-search
+  [searchSortOptions]="sortOptions"
+  [searchSortModel]="sortModel"
+  [loading]="loading"
+  (onSearchEvent)="applySearch($event)"
+  (onResetEvent)="resetSearch()"
+  (onSortChangeEvent)="changeSort($event)">
+</page-search>
+
+<pager
+  [infos]="pagerInfos()"
+  [loading]="loading()"
+  (onPrevEvent)="goToPreviousPage()"
+  (onNextEvent)="goToNextPage()">
+</pager>
