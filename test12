@@ -1,0 +1,51 @@
+public async Task<PagedResult<VirementDto>> GetPagedAsync(VirementFiltreDto filtre)
+{
+    var query = _context.Virements.AsQueryable();
+
+    if (!string.IsNullOrWhiteSpace(filtre.MotCle))
+    {
+        query = query.Where(v =>
+            v.Beneficiaire.Contains(filtre.MotCle) ||
+            v.Motif.Contains(filtre.MotCle));
+    }
+
+    // Tri manuel sans expression dynamique
+    switch (filtre.TriColonne?.ToLowerInvariant())
+    {
+        case "beneficiaire":
+            query = filtre.TriSens == "desc"
+                ? query.OrderByDescending(v => v.Beneficiaire)
+                : query.OrderBy(v => v.Beneficiaire);
+            break;
+
+        case "montant":
+            query = filtre.TriSens == "desc"
+                ? query.OrderByDescending(v => v.Montant)
+                : query.OrderBy(v => v.Montant);
+            break;
+
+        case "datecreation":
+        default:
+            query = filtre.TriSens == "desc"
+                ? query.OrderByDescending(v => v.DateCreation)
+                : query.OrderBy(v => v.DateCreation);
+            break;
+    }
+
+    var total = await query.CountAsync();
+
+    var items = await query
+        .Skip(filtre.PageIndex * filtre.PageSize)
+        .Take(filtre.PageSize)
+        .Select(v => new VirementDto
+        {
+            Id = v.Id,
+            Beneficiaire = v.Beneficiaire,
+            Montant = v.Montant,
+            Devise = v.Devise,
+            DateCreation = v.DateCreation
+        })
+        .ToListAsync();
+
+    return new PagedResult<VirementDto>(items, total);
+}
