@@ -1,0 +1,85 @@
+search = {
+  keyword: '',
+  sortField: 'date',
+  sortDirection: 'desc'
+};
+
+readonly allowedChars = "[\\w\\sàâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ0-9]*";
+
+get keywordInvalid(): boolean {
+  const regex = new RegExp(this.allowedChars);
+  return !!this.search.keyword && !regex.test(this.search.keyword);
+}
+
+onSearch(): void {
+  if (this.keywordInvalid) return;
+
+  this.transferService.loadPage({
+    keyword: this.search.keyword ?? '',
+    sortField: this.search.sortField,
+    triSens: this.search.sortDirection,
+    pageIndex: 0,
+    pageSize: 20
+  });
+}
+
+onReset(): void {
+  this.search = {
+    keyword: '',
+    sortField: 'date',
+    sortDirection: 'desc'
+  };
+  this.onSearch();
+}
+
+<div class="row bottom-xs">
+  <div class="col-sm-6 col-md-4">
+    <div class="form-group" [class.has-error]="keywordInvalid">
+      <label class="control-label" for="keywordsInput">Par mots-clés</label>
+
+      <input
+        type="text"
+        id="keywordsInput"
+        class="form-control"
+        name="keywords"
+        [(ngModel)]="search.keyword"
+        [pattern]="allowedChars"
+        #keywordsCtrl="ngModel"
+        [ngClass]="{'ng-invalid': keywordsCtrl.invalid, 'ng-dirty': keywordsCtrl.dirty}"
+        placeholder="Mots-clés"
+      />
+
+      <div class="form-help" *ngIf="keywordInvalid">
+        Les caractères spéciaux sont interdits
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-md-4">
+    <label>Trier par</label>
+    <select [(ngModel)]="search.sortField" class="form-control">
+      <option value="date">Date</option>
+      <option value="amount">Montant</option>
+      <option value="status">Statut</option>
+    </select>
+
+    <select [(ngModel)]="search.sortDirection" class="form-control mt-1">
+      <option value="desc">Décroissant</option>
+      <option value="asc">Croissant</option>
+    </select>
+  </div>
+
+  <div class="col-sm-12 col-md-4 d-flex align-items-end gap-2">
+    <button class="btn btn-sm btn-primary"
+            [disabled]="keywordInvalid || loading"
+            (click)="onSearch()">Lancer</button>
+
+    <button type="button"
+            class="btn btn-sm btn-reset"
+            [disabled]="loading"
+            (click)="onReset()"
+            title="Réinitialiser les filtres">
+      <icon type="cross-circle"></icon>
+    </button>
+  </div>
+</div>
