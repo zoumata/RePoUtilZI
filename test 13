@@ -1,3 +1,41 @@
+public static class AccountRulesHelper
+{
+    /// <summary>
+    /// Returns a short description of an account type.
+    /// </summary>
+    /// <param name="natureId">The nature ID of the account</param>
+    /// <param name="nature">The nature label</param>
+    /// <param name="managementOrientation">The management orientation</param>
+    /// <param name="managementType">The management type</param>
+    /// <returns>A formatted account type string</returns>
+    public static string GetAccountType(string natureId, string nature, string managementOrientation, string managementType)
+    {
+        if (managementType == "ADVISORY")
+        {
+            if (natureId == "PORTFOLIO" || natureId == "CASHPORTFOLIO" || natureId == "CASHACCOUNT")
+            {
+                return string.Format("{0}{1}",
+                    nature,
+                    !string.IsNullOrWhiteSpace(managementOrientation)
+                        ? " - \"" + managementOrientation + "\""
+                        : string.Empty
+                );
+            }
+            else
+            {
+                return nature;
+            }
+        }
+        else
+        {
+            return nature;
+        }
+    }
+}
+
+
+
+
 using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
