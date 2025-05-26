@@ -1,3 +1,53 @@
+import { Injectable, signal, computed } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { TransferDto, TransferResponse } from './transfer.model';
+
+@Injectable({ providedIn: 'root' })
+export class TransferService {
+  private readonly apiUrl = '/api/virements/filtre';
+
+  // Signaux privés modifiables
+  private readonly _transfers = signal<TransferDto[]>([]);
+  private readonly _total = signal(0);
+  private readonly _loading = signal(false);
+
+  // Signaux publics en lecture seule
+  readonly transfers = this._transfers.asReadonly();
+  readonly total = this._total.asReadonly();
+  readonly loading = this._loading.asReadonly();
+
+  constructor(private http: HttpClient) {}
+
+  loadPage(params: {
+    keyword: string;
+    pageIndex: number;
+    pageSize: number;
+    triSens: 'asc' | 'desc';
+  }): void {
+    this._loading.set(true);
+
+    this.http.post<TransferResponse>(this.apiUrl, {
+      keyword: params.keyword,
+      pageIndex: params.pageIndex,
+      pageSize: params.pageSize,
+      triSens: params.triSens
+    }).subscribe({
+      next: res => {
+        const updatedList = params.pageIndex === 0
+          ? res.items
+          : [...this._transfers(), ...res.items];
+
+        this._transfers.set(updatedList);
+        this._total.set(res.totalCount);
+      },
+      error: () => console.error('Erreur de chargement des virements'),
+      complete: () => this._loading.set(false)
+    });
+  }
+}
+
+
+
 @Component({
   selector: 'app-transfer-list',
   standalone: true,
