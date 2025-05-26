@@ -1,38 +1,30 @@
 public static class AccountRulesHelper
 {
     /// <summary>
-    /// Returns a short description of an account type.
+    /// Returns a short formatted label for the account type.
     /// </summary>
-    /// <param name="natureId">The nature ID of the account</param>
+    /// <param name="natureId">The account nature ID</param>
     /// <param name="nature">The nature label</param>
     /// <param name="managementOrientation">The management orientation</param>
     /// <param name="managementType">The management type</param>
-    /// <returns>A formatted account type string</returns>
+    /// <returns>A formatted string representing the account type</returns>
     public static string GetAccountType(string natureId, string nature, string managementOrientation, string managementType)
     {
-        if (managementType == "ADVISORY")
-        {
-            if (natureId == "PORTFOLIO" || natureId == "CASHPORTFOLIO" || natureId == "CASHACCOUNT")
-            {
-                return string.Format("{0}{1}",
-                    nature,
-                    !string.IsNullOrWhiteSpace(managementOrientation)
-                        ? " - \"" + managementOrientation + "\""
-                        : string.Empty
-                );
-            }
-            else
-            {
-                return nature;
-            }
-        }
-        else
-        {
+        // Early return if not advisory
+        if (!string.Equals(managementType, "ADVISORY", StringComparison.OrdinalIgnoreCase))
             return nature;
-        }
+
+        // Check if the nature requires orientation
+        var requiresOrientation = natureId is "PORTFOLIO" or "CASHPORTFOLIO" or "CASHACCOUNT";
+        if (!requiresOrientation)
+            return nature;
+
+        // Append orientation if available
+        return string.IsNullOrWhiteSpace(managementOrientation)
+            ? nature
+            : $"{nature} - \"{managementOrientation}\"";
     }
 }
-
 
 
 
