@@ -1,0 +1,22 @@
+async loadTransfers(filter: TransferFilterModel): Promise<void> {
+  this._loading.set(true);
+  this._error.set(false);
+
+  try {
+    const result = await firstValueFrom(
+      this.http.post<{ items: TransferModel[]; total: number }>(
+        '/api/transfers/history',
+        filter // ← ici le body de la requête POST
+      )
+    );
+
+    this._transfers.set(result.items);
+    this._total.set(result.total);
+  } catch {
+    this._transfers.set([]);
+    this._total.set(0);
+    this._error.set(true);
+  } finally {
+    this._loading.set(false);
+  }
+}
