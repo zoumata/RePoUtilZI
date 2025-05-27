@@ -1,0 +1,61 @@
+<div class="search-filters transactions-search-filters" [class.search-filters-opened]="isOpened">
+  <div class="search-filters-top d-flex-row flex-row-sm">
+    <button class="btn-toggle-filters" (click)="isOpened = !isOpened">
+      <span *ngIf="!isOpened">Recherche avancée</span>
+      <span *ngIf="isOpened">Fermer la recherche</span>
+    </button>
+  </div>
+
+  <div class="search-filters-sort" *ngIf="searchSortOptions">
+    <button #dropdownSortBtn>▼</button>
+    <dropdown alignment="right" [parent]="dropdownSortParent" [button]="dropdownSortBtn">
+      <ul class="links-list">
+        <li *ngFor="let option of searchSortOptions">
+          <a (click)="onSortChange(option)" [class.active]="searchSortModel.code === option.code">
+            {{ option.label }}
+          </a>
+        </li>
+      </ul>
+    </dropdown>
+  </div>
+
+  <!-- Remplacement collapsible par cdk-accordion -->
+  <cdk-accordion [multi]="false">
+    <cdk-accordion-item [expanded]="isOpened" (expandedChange)="isOpened = $event">
+      <div cdkAccordionItemHeader class="search-filters-toggle">
+        <!-- En option, même bouton peut être ici -->
+      </div>
+
+      <div class="search-filters-form">
+        <message type="error" *ngIf="errorMessage">
+          {{ errorMessage }}
+        </message>
+        <ng-content></ng-content>
+      </div>
+    </cdk-accordion-item>
+  </cdk-accordion>
+</div>
+
+
+
+import { CdkAccordionModule } from '@angular/cdk/accordion';
+
+@Component({
+  selector: 'page-search',
+  standalone: true,
+  imports: [CommonModule, CdkAccordionModule, ...],
+  ...
+})
+export class PageSearchComponent {
+  isOpened = false;
+  @Input() searchSortOptions: SearchSortModel[] = [];
+  @Input() searchSortModel!: SearchSortModel;
+  @Input() errorMessage?: string;
+
+  @Output() onSortChangeEvent = new EventEmitter<SearchSortModel>();
+
+  onSortChange(option: SearchSortModel) {
+    this.searchSortModel = option;
+    this.onSortChangeEvent.emit(option);
+  }
+}
