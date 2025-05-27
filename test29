@@ -1,4 +1,30 @@
-using System.Collections.Generic;
+
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using System.Reflection;
+
+public class IgnoreNullAndEmptyContractResolver : DefaultContractResolver
+{
+    protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
+    {
+        var prop = base.CreateProperty(member, memberSerialization);
+
+        prop.ShouldSerialize = instance =>
+        {
+            var value = prop.ValueProvider.GetValue(instance);
+
+            if (value == null)
+                return false;
+
+            if (value is string str && string.IsNullOrWhiteSpace(str))
+                return false;
+
+            return true;
+        };
+
+        return prop;
+    }
+}using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
