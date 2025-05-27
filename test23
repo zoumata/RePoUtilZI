@@ -1,0 +1,100 @@
+@Injectable({ providedIn: 'root' })
+export class TransferService {
+  constructor(private http: HttpClient) {}
+
+  async getHistory(filter: TransferFilterModel): Promise<{ items: TransferModel[]; total: number }> {
+    return firstValueFrom(
+      this.http.post<{ items: TransferModel[]; total: number }>(
+        '/api/transfers/history',
+        filter
+      )
+    );
+  }
+
+  async delete(id: string): Promise<void> {
+    await firstValueFrom(this.http.delete(`/api/transfers/${id}`));
+  }
+}
+
+
+
+@Component({
+  selector: 'transfer-history',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <input class="form-control" placeholder="Recherche"
+           [(ngModel)]="filter().keyword"
+           (ngModelChange)="onSearch()" />
+
+    <button class="btn btn-sm" (click)="onPrev()" [disabled]="!canPrev()">Précédent</button>
+    <button class="btn btn-sm ms-2" (click)="onNext()" [disabled]="!canNext()">Suivant</button>
+
+    <div *ngIf="loading()">Chargement...</div>
+    <div *ngIf="error()" class="text-danger">Erreur</div>
+
+    <table class="table" *ngIf="!loading() && !error()">
+      <tr *ngFor="let t of transfers()">
+        <td>{{ t.date | date }}</td>
+        <td>{{ t.beneficiary }}</td>
+        <td>{{ t.amount }}</td>
+      </tr>
+    </table>
+  `
+})
+export class TransferHistoryComponent {
+  constructor(private service: TransferService) {
+    this.load();
+  }
+
+  readonly filter = signal<TransferFilterModel>({
+    keyword: '',
+    pageIndex: 0,
+    pageSize: 10,
+    triSens: 'desc'
+  });
+
+  readonly loading = signal(false);
+  readonly error = signal(false);
+  readonly transfers = signal<TransferModel[]>([]);
+  readonly total = signal(0);
+
+  async load() {
+    this.loading.set(true);
+    this.error.set(false);
+
+    try {
+      const res = await this.service.getHistory(this.filter());
+      this.transfers.set(res.items);
+      this.total.set(res.total);
+    } catch {
+      this.error.set(true);
+      this.transfers.set([]);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  onSearch() {
+    this.filter.update(f => ({ ...f, pageIndex: 0 }));
+    this.load();
+  }
+
+  onNext() {
+    this.filter.update(f => ({ ...f, pageIndex: f.pageIndex + 1 }));
+    this.load();
+  }
+
+  onPrev() {
+    this.filter.update(f => ({ ...f, pageIndex: Math.max(f.pageIndex - 1, 0) }));
+    this.load();
+  }
+
+  canPrev() {
+    return this.filter().pageIndex > 0;
+  }
+
+  canNext() {
+    return (this.filter().pageIndex + 1) * this.filter().pageSize < this.total();
+  }
+}
