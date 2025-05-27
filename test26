@@ -1,3 +1,25 @@
+<button
+  [cdkMenuTriggerFor]="sortMenu"
+  aria-label="Trier par"
+  class="btn btn-sm"
+>
+  Trier par
+</button>
+
+<ng-template #sortMenu>
+  <ul cdkMenu class="links-list">
+    <li
+      *ngFor="let option of searchSortOptions"
+      cdkMenuItem
+      (click)="onSortChange(option)"
+      [class.active]="searchSortModel.code === option.code"
+    >
+      {{ option.label }}
+    </li>
+  </ul>
+</ng-template>
+
+
 <div class="search-filters transactions-search-filters" [class.search-filters-opened]="isOpened">
   <div class="search-filters-top d-flex-row flex-row-sm">
     <button class="btn-toggle-filters" (click)="isOpened = !isOpened">
