@@ -1,0 +1,68 @@
+@Injectable({ providedIn: 'root' })
+export class TransferService {
+  private readonly _error = signal(false);
+  readonly error = this._error.asReadonly();
+
+  constructor(private http: HttpClient, private errorHandler: ErrorHandler) {}
+
+  async getHistory(filter: TransferFilterModel): Promise<TransferResultModel> {
+    this._error.set(false);
+
+    try {
+      const res = await firstValueFrom(
+        this.http.post<{ items: TransferModel[]; total: number }>(
+          '/api/transfers/history',
+          filter
+        )
+      );
+
+      return new TransferResultModel(res.items, res.total);
+    } catch (err) {
+      this._error.set(true); // ← géré ici
+      this.errorHandler.handleError(err);
+      return TransferResultModel.empty();
+    }
+  }
+}
+
+export class TransferHistoryComponent {
+  loading = signal(false);
+  transfers = signal<TransferModel[]>([]);
+  total = signal(0);
+
+  filter = signal<TransferFilterModel>({
+    keyword: '',
+    pageIndex: 0,
+    pageSize: 10,
+    triSens: 'desc'
+  });
+
+  constructor(private service: TransferService) {
+    this.load();
+  }
+
+  async load() {
+    this.loading.set(true);
+    const result = await this.service.getHistory(this.filter());
+    this.transfers.set(result.items);
+    this.total.set(result.total);
+    this.loading.set(false);
+  }
+}
+<div *ngIf="service.error()" class="alert alert-danger">
+  Une erreur est survenue lors du chargement.
+</div>
+
+<div *ngIf="!service.error() && !loading() && transfers().length === 0">
+  Aucun virement trouvé.
+</div>
+
+<table *ngIf="!loading() && !service.error() && transfers().length > 0">
+  <tr *ngFor="let t of transfers()">
+    <td>{{ t.beneficiary }}</td>
+    <td>{{ t.amount }}</td>
+    <td>{{ t.date | date:'shortDate' }}</td>
+  </tr>
+</table>
+
+
