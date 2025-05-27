@@ -1,0 +1,35 @@
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
+using System.Threading.Tasks;
+using System.Web.Http;
+using Newtonsoft.Json;
+
+public class DocumentsController : ApiController
+{
+    [HttpGet]
+    [Route("api/documents")]
+    public async Task<HttpResponseMessage> GetDocuments()
+    {
+        // Simuler une récupération async (ex: depuis une base de données)
+        var documents = await Task.FromResult(new List<Document>
+        {
+            new Document { Nom = "Doc1", Description = null, DateCreation = DateTime.Now },
+            new Document { Nom = "Doc2", Description = "", DateCreation = null },
+            new Document { Nom = "Doc3", Description = "Rapport final", DateCreation = null }
+        });
+
+        var settings = new JsonSerializerSettings
+        {
+            ContractResolver = new IgnoreNullAndEmptyContractResolver(),
+            NullValueHandling = NullValueHandling.Ignore
+        };
+
+        string json = JsonConvert.SerializeObject(documents, settings);
+
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+        };
+    }
+}
