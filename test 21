@@ -1,0 +1,158 @@
+// === MODELES ===
+
+export interface TransferModel {
+  id: string;
+  date: Date;
+  emitter: string;
+  beneficiary: string;
+  amount: number;
+  status: 'Completed' | 'Pending';
+  label: string;
+}
+
+export interface TransferFilterModel {
+  keyword: string;
+  pageIndex: number;
+  pageSize: number;
+  triSens: 'asc' | 'desc';
+}
+
+export interface SearchSortModel {
+  code: string;
+  label: string;
+}
+
+// === SERVICE TRANSFER ===
+
+import { Injectable, signal } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+
+@Injectable({ providedIn: 'root' })
+export class TransferService {
+  private readonly _transfers = signal<TransferModel[]>([]);
+  private readonly _total = signal(0);
+  private readonly _loading = signal(false);
+  private readonly _error = signal(false);
+
+  readonly transfers = this._transfers.asReadonly();
+  readonly total = this._total.asReadonly();
+  readonly loading = this._loading.asReadonly();
+  readonly error = this._error.asReadonly();
+
+  constructor(private http: HttpClient) {}
+
+  async loadTransfers(filter: TransferFilterModel): Promise<void> {
+    this._loading.set(true);
+    this._error.set(false);
+
+    try {
+      const params = new HttpParams()
+        .set('keyword', filter.keyword ?? '')
+        .set('pageIndex', filter.pageIndex.toString())
+        .set('pageSize', filter.pageSize.toString())
+        .set('triSens', filter.triSens);
+
+      const result = await firstValueFrom(
+        this.http.get<{ items: TransferModel[]; total: number }>(
+          '/api/transfers/history',
+          { params }
+        )
+      );
+
+      this._transfers.set(result.items);
+      this._total.set(result.total);
+    } catch {
+      this._transfers.set([]);
+      this._total.set(0);
+      this._error.set(true);
+    } finally {
+      this._loading.set(false);
+    }
+  }
+}
+
+// === COMPOSANT TRANSFER-HISTORY ===
+
+import { Component, computed, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { TransferService } from './transfer.service';
+
+@Component({
+  selector: 'transfer-history',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <div class="mb-2">
+      <input class="form-control mb-2" placeholder="Recherche" [(ngModel)]="filter().keyword" (ngModelChange)="applySearch()" />
+
+      <select class="form-select w-auto d-inline-block me-2" [(ngModel)]="filter().triSens" (change)="applySort()">
+        <option value="desc">Plus récent</option>
+        <option value="asc">Plus ancien</option>
+      </select>
+
+      <button class="btn btn-sm btn-outline-primary" (click)="onPrev()" [disabled]="!pager().isPrevEnabled || transferService.loading()">Précédent</button>
+      <button class="btn btn-sm btn-outline-primary ms-2" (click)="onNext()" [disabled]="!pager().isNextEnabled || transferService.loading()">Suivant</button>
+    </div>
+
+    <div *ngIf="transferService.loading()">Chargement...</div>
+    <div *ngIf="transferService.error()" class="text-danger">Erreur de chargement</div>
+
+    <table class="table table-sm" *ngIf="!transferService.loading()">
+      <thead>
+        <tr>
+          <th>Date</th><th>Bénéficiaire</th><th>Montant</th><th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let t of transferService.transfers()">
+          <td>{{ t.date | date:'shortDate' }}</td>
+          <td>{{ t.beneficiary }}</td>
+          <td>{{ t.amount | number:'1.2-2' }}</td>
+          <td>{{ t.status }}</td>
+        </tr>
+      </tbody>
+    </table>
+  `
+})
+export class TransferHistoryComponent {
+  constructor(public transferService: TransferService) {
+    this.load();
+  }
+
+  readonly filter = signal<TransferFilterModel>({
+    keyword: '',
+    pageIndex: 0,
+    pageSize: 10,
+    triSens: 'desc'
+  });
+
+  readonly pager = computed(() => ({
+    isPrevEnabled: this.filter().pageIndex > 0,
+    isNextEnabled: (this.filter().pageIndex + 1) * this.filter().pageSize < this.transferService.total()
+  }));
+
+  async load(): Promise<void> {
+    await this.transferService.loadTransfers(this.filter());
+  }
+
+  applySearch(): void {
+    this.filter.update(f => ({ ...f, pageIndex: 0 }));
+    this.load();
+  }
+
+  applySort(): void {
+    this.filter.update(f => ({ ...f, pageIndex: 0 }));
+    this.load();
+  }
+
+  onNext(): void {
+    this.filter.update(f => ({ ...f, pageIndex: f.pageIndex + 1 }));
+    this.load();
+  }
+
+  onPrev(): void {
+    this.filter.update(f => ({ ...f, pageIndex: Math.max(f.pageIndex - 1, 0) }));
+    this.load();
+  }
+}
