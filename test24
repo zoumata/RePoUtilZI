@@ -1,0 +1,13 @@
+async getHistory(filter: TransferFilterModel): Promise<{ items: TransferModel[]; total: number }> {
+  try {
+    return await firstValueFrom(
+      this.http.post<{ items: TransferModel[]; total: number }>(
+        '/api/transfers/history',
+        filter
+      )
+    );
+  } catch (err) {
+    console.error('[TransferService] Erreur chargement historique', err);
+    return { items: [], total: 0 }; // valeur sûre
+  }
+}
