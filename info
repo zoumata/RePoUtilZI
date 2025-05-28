@@ -1,0 +1,21 @@
+🧩 1. git checkout master
+
+Cette commande bascule vers la branche master localement.
+
+✅ But : s’assurer que tu travailles bien à partir de master.
+
+🔎 Si tu es déjà sur master, cette commande n’aura pas d’effet visible.
+
+⸻
+
+🔄 2. git pull origin master
+
+Cette commande met à jour ta branche master locale avec les dernières modifications du dépôt distant (origin).
+
+✅ But : récupérer les derniers commits depuis origin/master, pour que ta future branche parte d’une base propre et à jour.
+
+⸻
+
+🌱 3. git checkout -b nom-de-ta-branche
+
+Cette commande crée une nouvelle branche nommée nom-de-ta-branche et s’y positionne immédiatement.
