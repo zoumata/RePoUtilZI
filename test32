@@ -1,0 +1,18 @@
+@Injectable({ providedIn: 'root' })
+export class BeneficiaireService {
+  private readonly _error = signal(false);
+  readonly error = this._error.asReadonly();
+
+  constructor(private http: HttpClient) {}
+
+  getBeneficiaires(): Observable<BeneficiaireModel[]> {
+    this._error.set(false);
+    return this.http.get<BeneficiaireModel[]>('/api/beneficiaires').pipe(
+      catchError(err => {
+        this._error.set(true);           // pour observer dans le composant
+        errorHandler(err);               // ton handler global
+        return of([]);                   // ou throwError(() => err) selon ton besoin
+      })
+    );
+  }
+}
