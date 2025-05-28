@@ -1,17 +1,40 @@
-@Injectable({ providedIn: 'root' })
-export class PopinService {
-  private currentDialogRef?: DialogRef<any>;
+import { Component, Inject } from '@angular/core';
+import { DIALOG_DATA } from '@angular/cdk/dialog';
+import { TransferModel } from '...'; // Ton modèle de virement
+import { PopinService } from '...';  // Ton service popin
+import { VirementService } from '...'; // Ton service pour appel API
 
-  constructor(private dialog: Dialog) {}
+@Component({
+  selector: 'app-delete-transfer-popin',
+  standalone: true,
+  templateUrl: './delete-transfer-popin.component.html'
+})
+export class DeleteTransferPopinComponent {
+  loading = false;
 
-  open<T, D = any>(component: ComponentType<T>, data?: D): void {
-    this.currentDialogRef = this.dialog.open(component, {
-      data: data
+  constructor(
+    @Inject(DIALOG_DATA) public transfer: TransferModel,
+    private virementService: VirementService,
+    private popinService: PopinService
+  ) {}
+
+  confirm() {
+    this.loading = true;
+
+    this.virementService.supprimerVirement(this.transfer.id).subscribe({
+      next: () => {
+        // ✅ Suppression réussie → on ferme la popin
+        this.popinService.close(true); // tu peux aussi passer undefined si tu veux
+      },
+      error: (err) => {
+        this.loading = false;
+        console.error('Erreur suppression :', err);
+        // facultatif : afficher un message d’erreur dans la popin
+      }
     });
   }
 
-  close(): void {
-    this.currentDialogRef?.close();
-    this.currentDialogRef = undefined;
+  cancel() {
+    this.popinService.close();
   }
 }
