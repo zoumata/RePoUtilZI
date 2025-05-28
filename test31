@@ -1,0 +1,17 @@
+@Injectable({ providedIn: 'root' })
+export class PopinService {
+  private currentDialogRef?: DialogRef<any>;
+
+  constructor(private dialog: Dialog) {}
+
+  open<T, D = any>(component: ComponentType<T>, data?: D): void {
+    this.currentDialogRef = this.dialog.open(component, {
+      data: data
+    });
+  }
+
+  close(): void {
+    this.currentDialogRef?.close();
+    this.currentDialogRef = undefined;
+  }
+}
