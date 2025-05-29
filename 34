@@ -1,0 +1,129 @@
+// popin-full-example.ts
+import { Component, Inject, Injectable, Injector, Type } from '@angular/core';
+import { bootstrapApplication } from '@angular/platform-browser';
+import { CommonModule } from '@angular/common';
+import { Dialog, DialogModule, DIALOG_DATA } from '@angular/cdk/dialog';
+
+/** 🔷 Le modèle de configuration pour la popin */
+export interface PopinModel {
+  title: string;
+  body?: string;
+  hasFooter?: boolean;
+  footerText?: string;
+  componentBody?: Type<any>;
+  componentModel?: any;
+}
+
+/** 🔷 Le modèle utilisé dans un composant dynamique */
+export interface UserInfoModel {
+  id: number;
+  name: string;
+  role: string;
+  isAdmin: boolean;
+}
+
+/** 🔷 Composant dynamique injecté dans la popin */
+@Component({
+  selector: 'app-user-body',
+  standalone: true,
+  template: `
+    <div>
+      <h3>Nom : {{ model.name }}</h3>
+      <p>Rôle : {{ model.role }}</p>
+      <p *ngIf="model.isAdmin">[Admin]</p>
+    </div>
+  `
+})
+export class UserBodyComponent {
+  constructor(@Inject('customModel') public model: UserInfoModel) {}
+}
+
+/** 🔷 Popin générique */
+@Component({
+  selector: 'app-generic-popin',
+  standalone: true,
+  imports: [CommonModule, DialogModule],
+  template: `
+    <div class="popin">
+      <h2>{{ data.title }}</h2>
+
+      <ng-container *ngIf="data.componentBody; else stringBody"
+        [ngComponentOutlet]="data.componentBody"
+        [ngComponentOutletInjector]="customInjector">
+      </ng-container>
+
+      <ng-template #stringBody>
+        <p>{{ data.body }}</p>
+      </ng-template>
+
+      <footer *ngIf="data.hasFooter">
+        <hr />
+        <div>{{ data.footerText || 'Fermer' }}</div>
+      </footer>
+    </div>
+  `
+})
+export class GenericPopinComponent {
+  constructor(@Inject(DIALOG_DATA) public data: PopinModel) {}
+
+  get customInjector() {
+    return Injector.create({
+      providers: [{ provide: 'customModel', useValue: this.data.componentModel }]
+    });
+  }
+}
+
+/** 🔷 Service Popin */
+@Injectable({ providedIn: 'root' })
+export class PopinService {
+  constructor(private dialog: Dialog) {}
+
+  open(model: PopinModel) {
+    this.dialog.open(GenericPopinComponent, { data: model });
+  }
+}
+
+/** 🔷 Composant parent pour test */
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <h1>Démo popin</h1>
+    <button (click)="openTextPopin()">Popin avec texte</button>
+    <button (click)="openComponentPopin()">Popin avec composant</button>
+  `
+})
+export class AppComponent {
+  constructor(private popin: PopinService) {}
+
+  openTextPopin() {
+    this.popin.open({
+      title: 'Message info',
+      body: 'Opération réalisée avec succès.',
+      hasFooter: true,
+      footerText: 'OK'
+    });
+  }
+
+  openComponentPopin() {
+    const model: UserInfoModel = {
+      id: 1,
+      name: 'Amine',
+      role: 'Développeur',
+      isAdmin: false
+    };
+
+    this.popin.open({
+      title: 'Détail utilisateur',
+      componentBody: UserBodyComponent,
+      componentModel: model,
+      hasFooter: true
+    });
+  }
+}
+
+// Bootstrap de l'app
+bootstrapApplication(AppComponent, {
+  providers: [],
+});
