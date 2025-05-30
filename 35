@@ -1,0 +1,36 @@
+<div *ngFor="let group of groups">
+  <div class="group-title">{{ group.title }}</div>
+
+  <div
+    cdkDropList
+    [cdkDropListData]="group.list"
+    (cdkDropListDropped)="onDrop(group.list, $event)"
+    class="beneficiaries-list"
+  >
+    <div
+      *ngFor="let beneficiary of group.list"
+      cdkDrag
+      class="beneficiary-item"
+    >
+      {{ beneficiary.name }}
+    </div>
+  </div>
+</div>import { Component, Input } from '@angular/core';
+import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+
+@Component({
+  selector: 'app-beneficiaries-list',
+  templateUrl: './beneficiaries-list.component.html'
+})
+export class BeneficiariesListComponent {
+  @Input() groups: { title: string; list: any[] }[] = [];
+
+  onDrop(list: any[], event: CdkDragDrop<any[]>) {
+    moveItemInArray(list, event.previousIndex, event.currentIndex);
+  }
+}
+
+
+
+
+
