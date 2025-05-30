@@ -1,0 +1,17 @@
+public record GetBeneficiairesGroupListQuery() : IRequest<IEnumerable<BeneficiairesGroupDto>>;
+
+public class GetBeneficiairesGroupListQueryHandler 
+    : IRequestHandler<GetBeneficiairesGroupListQuery, IEnumerable<BeneficiairesGroupDto>>
+{
+    private readonly ITransferRepository _repository;
+
+    public GetBeneficiairesGroupListQueryHandler(ITransferRepository repository)
+    {
+        _repository = repository;
+    }
+
+    public async Task<IEnumerable<BeneficiairesGroupDto>> Handle(GetBeneficiairesGroupListQuery request, CancellationToken cancellationToken)
+    {
+        return await _repository.GetBeneficiairesGroupsAsync();
+    }
+}
